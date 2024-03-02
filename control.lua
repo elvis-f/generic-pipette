@@ -2,23 +2,28 @@ mod_gui = require("mod-gui")
 
 local item_sprites = {"inserter"}
 
-local function build_popup(player, item_list)
-    local player_global = global.players[player.index]
+local gp_inserter_list = {}
+local gp_belt_list = {}
 
-    local screen_element = player.gui.screen
-    local main_frame = screen_element.add{type="frame", name="gp_popup_frame", caption={"gui.select_tier"}, direction="vertical"}
+local gp_selected_belt = nil
+local gp_selected_inserter = nil
 
-    main_frame.style.size = {200, 100}
-    main_frame.auto_center = true
+local function build_popup(player, item_list, category)
+    local player_global     = global.players[player.index]
 
-    player.opened = main_frame
+    local screen_element    = player.gui.screen
+    local main_frame        = screen_element.add{type="frame", caption={"gui.select_tier"}, direction="vertical"}
 
-    local button_table = main_frame.add{type="table", column_count=3}
+    main_frame.auto_center  = true
 
-    for i = 1, 3 do
+    player.opened           = main_frame
+
+    local button_table      = main_frame.add{type="table", column_count=3}
+
+    for i = 1, #item_list do
         local sprite_name = item_list[i]
 
-        button_table.add{type="sprite-button", sprite=("item/"..sprite_name)}
+        button_table.add{type="sprite-button", tags={class = "gp_tier_selector", category = category, item=sprite_name}, sprite=("item/"..sprite_name)}
     end
 end
 
@@ -28,21 +33,31 @@ local function build_interface(player)
     local screen_element = player.gui.screen
     local main_frame = screen_element.add{type="frame", name="gp_main_frame", caption={"gp.title"}, direction="vertical"}
 
-    main_frame.style.size = {200, 200}
     main_frame.auto_center = true
 
     player.opened = main_frame
     
     local content_frame = main_frame.add{type="frame", name="content_frame", direction="vertical", style="gp_content_frame"}
     
-    local gp_belt_container = content_frame.add{type="flow", direction="vertical"}
-    local gp_belt_label = gp_belt_container.add{type="label", caption={"gui.belt_label"}}
-    local gp_belt_icons_flow = gp_belt_container.add{type="flow", direction="horizontal"}
+    local gp_belt_container         = content_frame    .add{type="flow", direction="vertical"}
+    local gp_belt_label             = gp_belt_container.add{type="label", caption={"gui.belt_label"}}
+    local gp_belt_icons_flow        = gp_belt_container.add{type="flow", direction="horizontal"}
 
-    local gp_belt_generic_button = gp_belt_icons_flow.add{type="sprite-button", sprite="gp:generic-belt-sprite"}
-    local gp_belt_hand = gp_belt_icons_flow.add{type="sprite", sprite="utility/hand", name="belts_hand"}
-    gp_belt_hand.style.padding = 4
-    local gp_belt_selector = gp_belt_icons_flow.add{type="sprite-button", sprite="utility/upgrade_blueprint", name="belt_selector"}
+    local gp_belt_generic_button        = gp_belt_icons_flow.add{type="sprite-button", sprite="gp:generic-belt-sprite"}
+    local gp_belt_hand                  = gp_belt_icons_flow.add{type="sprite", sprite="utility/hand", name="belts_hand"}
+    gp_belt_hand.style.padding          = 4
+    local belt_sprite                   = (gp_selected_belt and {"item/"..gp_selected_belt} or {"utility/upgrade_blueprint"})[1]
+    local gp_belt_selector              = gp_belt_icons_flow.add{type="sprite-button", sprite=belt_sprite, name="belt_selector"}
+
+    local gp_inserter_container     = content_frame.add{type="flow", direction="vertical"}
+    local gp_inserter_label         = gp_belt_container.add{type="label", caption={"gui.inserter_label"}}
+    local gp_inserter_icons_flow    = gp_inserter_container.add{type="flow", direction="horizontal"}
+
+    local gp_inserter_generic_button    = gp_inserter_icons_flow.add{type="sprite-button", sprite="gp:generic-inserter-sprite"}
+    local gp_inserter_hand              = gp_inserter_icons_flow.add{type="sprite", sprite="utility/hand", name="inserters_hand"}
+    gp_inserter_hand.style.padding      = 4
+    local inserter_sprite               = (gp_selected_inserter and {"item/"..gp_selected_inserter} or {"utility/upgrade_blueprint"})[1]
+    local gp_inserter_selector          = gp_inserter_icons_flow.add{type="sprite-button", sprite=inserter_sprite, name="inserter_selector"}
 
     local line = content_frame.add{type="line"}
     line.style.padding = 4
@@ -63,6 +78,20 @@ local function initialize_global(player)
     global.players[player.index] = { controls_active = true, button_count = 0, selected_item = nil }
 end
 
+local function setup_tiers()
+    if game.active_mods["IndustrialRevolution3"] then
+        game.print("IR3 installed!")
+
+        gp_inserter_list = {"burner-inserter","steam-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_belt_list = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+    elseif game.active_mods["SpaceExploration"] then
+        game.print("SE installed!")
+    else
+        gp_inserter_list = {"burner-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_belt_list = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+    end
+end
+
 script.on_init(function()
     local freeplay = remote.interfaces["freeplay"]
     if freeplay then  -- Disable freeplay popup-message
@@ -75,6 +104,8 @@ script.on_init(function()
     for _, player in pairs(game.players) do
         initialize_global(player)
     end
+
+    setup_tiers()
 end)
 
 script.on_event(defines.events.on_player_created, function(event)
@@ -83,16 +114,6 @@ script.on_event(defines.events.on_player_created, function(event)
 
     local button_flow = mod_gui.get_button_flow(player)
     button_flow.add{type="sprite-button", name="gp_settings", sprite="utility/refresh", style=mod_gui.button_style}
-
-    game.print("bruh test!")
-
-    if game.active_mods["IndustrialRevolution3"] then
-        game.print("IR3 installed!")
-    end
-
-    if game.active_mods["SpaceExploration"] then
-        game.print("SE installed!")
-    end
 end)
 
 script.on_event(defines.events.on_gui_click, function(event)
@@ -108,7 +129,24 @@ script.on_event(defines.events.on_gui_click, function(event)
         end
     end
     if event.element.name == "belt_selector" then
-        build_popup(game.get_player(event.player_index), {"transport-belt", "fast-transport-belt", "express-transport-belt"})
+        build_popup(game.get_player(event.player_index), gp_belt_list, "belt")
+    end
+    if event.element.name == "inserter_selector" then
+        build_popup(game.get_player(event.player_index), gp_inserter_list, "inserter")
+    end
+
+    if event.element.tags.class == "gp_tier_selector" then
+        if event.element.tags.category == "belt" then
+            gp_selected_belt = event.element.tags.item
+
+            toggle_interface(game.get_player(event.player_index))
+            toggle_interface(game.get_player(event.player_index))
+        elseif event.element.tags.category == "inserter" then
+            gp_selected_inserter = event.element.tags.item
+
+            toggle_interface(game.get_player(event.player_index))
+            toggle_interface(game.get_player(event.player_index))
+        end
     end
 end)
 
