@@ -1,0 +1,9 @@
+{
+    "name": "generic-pipette",
+    "version": "0.1.0",
+    "title": "Generic Pipette (Q)",
+    "author": "elvis-f",
+    "factorio_version": "1.1",
+    "dependencies": ["base >= 1.1"],
+    "description": "This mod modifies the pipette tool functionality, in a way that when you select any entity, it will generalize it and give you the desired variant!"
+}
