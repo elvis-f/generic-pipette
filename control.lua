@@ -9,13 +9,10 @@ local gp_selected_belt = nil
 local gp_selected_inserter = nil
 
 local function build_popup(player, item_list, category)
-    local player_global     = global.players[player.index]
-
     local screen_element    = player.gui.screen
     local main_frame        = screen_element.add{type="frame", caption={"gui.select_tier"}, direction="vertical"}
 
     main_frame.auto_center  = true
-
     player.opened           = main_frame
 
     local button_table      = main_frame.add{type="table", column_count=3}
@@ -44,7 +41,7 @@ local function build_interface(player)
     local gp_belt_icons_flow        = gp_belt_container.add{type="flow", direction="horizontal"}
 
     local gp_belt_generic_button        = gp_belt_icons_flow.add{type="sprite-button", sprite="gp:generic-belt-sprite"}
-    local gp_belt_hand                  = gp_belt_icons_flow.add{type="sprite", sprite="utility/hand", name="belts_hand"}
+    local gp_belt_hand                  = gp_belt_icons_flow.add{type="sprite", sprite="utility/hand", name="belts_hand", tags={class="hand"}}
     gp_belt_hand.style.padding          = 4
     local belt_sprite                   = (gp_selected_belt and {"item/"..gp_selected_belt} or {"utility/upgrade_blueprint"})[1]
     local gp_belt_selector              = gp_belt_icons_flow.add{type="sprite-button", sprite=belt_sprite, name="belt_selector"}
@@ -54,7 +51,7 @@ local function build_interface(player)
     local gp_inserter_icons_flow    = gp_inserter_container.add{type="flow", direction="horizontal"}
 
     local gp_inserter_generic_button    = gp_inserter_icons_flow.add{type="sprite-button", sprite="gp:generic-inserter-sprite"}
-    local gp_inserter_hand              = gp_inserter_icons_flow.add{type="sprite", sprite="utility/hand", name="inserters_hand"}
+    local gp_inserter_hand              = gp_inserter_icons_flow.add{type="sprite", sprite="utility/hand", name="inserters_hand", tags={class="hand"}}
     gp_inserter_hand.style.padding      = 4
     local inserter_sprite               = (gp_selected_inserter and {"item/"..gp_selected_inserter} or {"utility/upgrade_blueprint"})[1]
     local gp_inserter_selector          = gp_inserter_icons_flow.add{type="sprite-button", sprite=inserter_sprite, name="inserter_selector"}
@@ -82,13 +79,15 @@ local function setup_tiers()
     if game.active_mods["IndustrialRevolution3"] then
         game.print("IR3 installed!")
 
-        gp_inserter_list = {"burner-inserter","steam-inserter", "inserter", "fast-inserter", "stack-inserter"}
-        gp_belt_list = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+        gp_inserter_list    = {"burner-inserter","steam-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+
     elseif game.active_mods["SpaceExploration"] then
         game.print("SE installed!")
+
     else
-        gp_inserter_list = {"burner-inserter", "inserter", "fast-inserter", "stack-inserter"}
-        gp_belt_list = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+        gp_inserter_list    = {"burner-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
     end
 end
 
@@ -117,39 +116,54 @@ script.on_event(defines.events.on_player_created, function(event)
 end)
 
 script.on_event(defines.events.on_gui_click, function(event)
+    local player = game.get_player(event.player_index)
+
     if event.element.name == "gp_settings" then
-        local player = game.get_player(event.player_index)
         toggle_interface(player)
     end
-    if event.element.name == "belts_hand" then
+
+    if event.element.tags.class == "hand" then
         if event.element.sprite == 'utility/hand_black' then
             event.element.sprite = 'utility/hand'
         else
             event.element.sprite = 'utility/hand_black'
         end
     end
+
     if event.element.name == "belt_selector" then
-        build_popup(game.get_player(event.player_index), gp_belt_list, "belt")
+        build_popup(player, gp_belt_list, "belt")
     end
+
     if event.element.name == "inserter_selector" then
-        build_popup(game.get_player(event.player_index), gp_inserter_list, "inserter")
+        build_popup(player, gp_inserter_list, "inserter")
     end
 
     if event.element.tags.class == "gp_tier_selector" then
         if event.element.tags.category == "belt" then
             gp_selected_belt = event.element.tags.item
 
-            toggle_interface(game.get_player(event.player_index))
-            toggle_interface(game.get_player(event.player_index))
+            toggle_interface(player)
+            toggle_interface(player)
+
         elseif event.element.tags.category == "inserter" then
             gp_selected_inserter = event.element.tags.item
 
-            toggle_interface(game.get_player(event.player_index))
-            toggle_interface(game.get_player(event.player_index))
+            toggle_interface(player)
+            toggle_interface(player)
         end
     end
 end)
 
 script.on_event(defines.events.on_player_removed, function(event)
     global.players[event.player_index] = nil
+end)
+
+script.on_event(defines.events.on_player_pipette, function(event)
+    local player = game.get_player(event.player_index)
+
+    game.print("pipetting all over the place")
+
+    if event.item.subgroup == "belt" and player ~= nil then
+        local inventory = player.character.get_main_inventory()
+    end
 end)
