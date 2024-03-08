@@ -2,17 +2,21 @@ mod_gui = require("mod-gui")
 
 local item_sprites = {"inserter"}
 
+local popup_frame = nil
+local is_popup_visible = false
+
 local gp_inserter_list = {}
 local gp_belt_list = {}
 
 local gp_selected_belt = nil
 local gp_selected_inserter = nil
 
-local function build_popup(player, item_list, category)
+local function build_popup(player, item_list, category, location)
     local screen_element    = player.gui.screen
     local main_frame        = screen_element.add{type="frame", caption={"gui.select_tier"}, direction="vertical"}
+    
+    main_frame.location     = location
 
-    main_frame.auto_center  = true
     player.opened           = main_frame
 
     local button_table      = main_frame.add{type="table", column_count=3}
@@ -20,41 +24,73 @@ local function build_popup(player, item_list, category)
     for i = 1, #item_list do
         local sprite_name = item_list[i]
 
-        button_table.add{type="sprite-button", tags={class = "gp_tier_selector", category = category, item=sprite_name}, sprite=("item/"..sprite_name)}
+        button_table.add{type="sprite-button", tags={class="gp_tier_selector", category=category, item=sprite_name}, sprite=("item/"..sprite_name)}
     end
+
+    return main_frame
+end
+
+local function build_section(parent_frame, config)
+    local container      = parent_frame.add{type="flow", direction="vertical"}
+
+    local label          = container.add{type="label", caption=config.label}
+    local icons_flow     = container.add{type="flow", direction="horizontal"}
+
+    local generic_button = icons_flow.add{type="sprite-button", sprite=config.generic_sprite}
+    local hand           = icons_flow.add{type="sprite", sprite="utility/hand", tags={class="hand"}}
+    hand.style.padding   = 4
+
+    local sprite         = (config.selected_item and {"item/"..config.selected_item} or {"utility/upgrade_blueprint"})[1]
+    local selector       = icons_flow.add{type="sprite-button", sprite=sprite, name=config.selector_name}
+
+    return container
 end
 
 local function build_interface(player)
     local player_global = global.players[player.index]
-
     local screen_element = player.gui.screen
-    local main_frame = screen_element.add{type="frame", name="gp_main_frame", caption={"gp.title"}, direction="vertical"}
 
-    main_frame.auto_center = true
+    local main_frame = screen_element.add{
+        type="frame",
+        name="gp_main_frame",
+        caption={"gp.title"},
+        direction="vertical",
+        location={0, 300}
+    }
 
     player.opened = main_frame
     
-    local content_frame = main_frame.add{type="frame", name="content_frame", direction="vertical", style="gp_content_frame"}
-    
-    local gp_belt_container         = content_frame    .add{type="flow", direction="vertical"}
-    local gp_belt_label             = gp_belt_container.add{type="label", caption={"gui.belt_label"}}
-    local gp_belt_icons_flow        = gp_belt_container.add{type="flow", direction="horizontal"}
+    local content_frame = main_frame.add{
+        type="frame",
+        name="content_frame",
+        direction="vertical",
+        style="gp_content_frame"
+    }
 
-    local gp_belt_generic_button        = gp_belt_icons_flow.add{type="sprite-button", sprite="gp:generic-belt-sprite"}
-    local gp_belt_hand                  = gp_belt_icons_flow.add{type="sprite", sprite="utility/hand", name="belts_hand", tags={class="hand"}}
-    gp_belt_hand.style.padding          = 4
-    local belt_sprite                   = (gp_selected_belt and {"item/"..gp_selected_belt} or {"utility/upgrade_blueprint"})[1]
-    local gp_belt_selector              = gp_belt_icons_flow.add{type="sprite-button", sprite=belt_sprite, name="belt_selector"}
+    local sections = {
 
-    local gp_inserter_container     = content_frame.add{type="flow", direction="vertical"}
-    local gp_inserter_label         = gp_belt_container.add{type="label", caption={"gui.inserter_label"}}
-    local gp_inserter_icons_flow    = gp_inserter_container.add{type="flow", direction="horizontal"}
+        -- selector_name: (string)      | The name used by the on_gui_click event 
+        -- label: (localised string)    | Section label
+        -- generic_sprite: (StringPath) | Path to the generic sprite, should be defined in data.lua
+        -- selected_item: (item)        | Reference to the currently selected state variable
 
-    local gp_inserter_generic_button    = gp_inserter_icons_flow.add{type="sprite-button", sprite="gp:generic-inserter-sprite"}
-    local gp_inserter_hand              = gp_inserter_icons_flow.add{type="sprite", sprite="utility/hand", name="inserters_hand", tags={class="hand"}}
-    gp_inserter_hand.style.padding      = 4
-    local inserter_sprite               = (gp_selected_inserter and {"item/"..gp_selected_inserter} or {"utility/upgrade_blueprint"})[1]
-    local gp_inserter_selector          = gp_inserter_icons_flow.add{type="sprite-button", sprite=inserter_sprite, name="inserter_selector"}
+        belt = {
+            selector_name = "belt_selector",
+            label = {"gui.belt_label"},
+            generic_sprite = "gp:generic-belt-sprite",
+            selected_item = gp_selected_belt
+        },
+        inserter = {
+            selector_name = "inserter_selector",
+            label = {"gui.inserter_label"},
+            generic_sprite = "gp:generic-inserter-sprite",
+            selected_item = gp_selected_inserter
+        }
+    }
+
+    for section_name, section_data in pairs(sections) do
+        build_section(content_frame, section_data)
+    end
 
     local line = content_frame.add{type="line"}
     line.style.padding = 4
@@ -115,6 +151,8 @@ script.on_event(defines.events.on_player_created, function(event)
     button_flow.add{type="sprite-button", name="gp_settings", sprite="utility/refresh", style=mod_gui.button_style}
 end)
 
+
+-- HORRIBLE CODE, FIND BETTER SOLUTIONS IDIOT
 script.on_event(defines.events.on_gui_click, function(event)
     local player = game.get_player(event.player_index)
 
@@ -130,12 +168,23 @@ script.on_event(defines.events.on_gui_click, function(event)
         end
     end
 
+
+    -- Figure out how to use relative coordinates instead of hardcoded ones
     if event.element.name == "belt_selector" then
-        build_popup(player, gp_belt_list, "belt")
+        if(popup_frame) then
+            popup_frame.destroy()
+        end
+
+        popup_frame = build_popup(player, gp_belt_list, "belt", {200, 350})
+        is_popup_visible = true 
     end
 
     if event.element.name == "inserter_selector" then
-        build_popup(player, gp_inserter_list, "inserter")
+        if(popup_frame) then
+            popup_frame.destroy()
+        end
+        popup_frame = build_popup(player, gp_inserter_list, "inserter", {200, 350})
+        is_popup_visible = true
     end
 
     if event.element.tags.class == "gp_tier_selector" then
@@ -150,6 +199,11 @@ script.on_event(defines.events.on_gui_click, function(event)
 
             toggle_interface(player)
             toggle_interface(player)
+        end
+
+        if popup_frame then
+            is_popup_visible = false
+            popup_frame.destroy()
         end
     end
 end)
