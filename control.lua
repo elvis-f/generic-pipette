@@ -11,8 +11,11 @@ local gp_belt_list = {}
 local gp_selected_belt = nil
 local gp_selected_inserter = nil
 
+local gp_belt_override = false
+local gp_inserter_override = false
+
 local function build_popup(player, item_list, category, location)
-    local screen_element    = player.gui.screen
+    local screen_element    = player.gui.left
     local main_frame        = screen_element.add{type="frame", caption={"gui.select_tier"}, direction="vertical"}
     
     main_frame.location     = location
@@ -48,7 +51,7 @@ end
 
 local function build_interface(player)
     local player_global = global.players[player.index]
-    local screen_element = player.gui.screen
+    local screen_element = player.gui.left
 
     local main_frame = screen_element.add{
         type="frame",
@@ -98,7 +101,7 @@ local function build_interface(player)
 end
 
 local function toggle_interface(player)
-    local main_frame = player.gui.screen.gp_main_frame
+    local main_frame = player.gui.left.gp_main_frame
 
     if main_frame == nil then
         build_interface(player)
@@ -216,8 +219,14 @@ script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.get_player(event.player_index)
 
     game.print("pipetting all over the place")
-
-    if event.item.subgroup == "belt" and player ~= nil then
+    if (player ~= nil) then
         local inventory = player.character.get_main_inventory()
+
+        if(inventory ~= nil) then
+            game.print(event.item.subgroup.name)
+            if(event.item.subgroup.name == "belt") then
+                player.cursor_stack.set_stack((inventory.find_item_stack(gp_selected_belt or "")))
+            end
+        end
     end
 end)
