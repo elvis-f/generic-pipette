@@ -2,17 +2,23 @@ mod_gui = require("mod-gui")
 
 local item_sprites = {"inserter"}
 
+local gp_data = {
+    inserter_list = {},
+    belt_list = {},
+}
+
+local gp_state = {
+    is_window_open = false,
+
+    selected_belt = nil,
+    selected_inserter = nil,
+
+    -- An override means that this specific item won't get replaced
+    belt_override = false,
+    inserter_override = false,
+}
+
 local popup_frame = nil
-local is_popup_visible = false
-
-local gp_inserter_list = {}
-local gp_belt_list = {}
-
-local gp_selected_belt = nil
-local gp_selected_inserter = nil
-
-local gp_belt_override = false
-local gp_inserter_override = false
 
 local function build_popup(player, item_list, category, location)
     local screen_element    = player.gui.left
@@ -81,13 +87,13 @@ local function build_interface(player)
             selector_name = "belt_selector",
             label = {"gui.belt_label"},
             generic_sprite = "gp:generic-belt-sprite",
-            selected_item = gp_selected_belt
+            selected_item = gp_state.selected_belt
         },
         inserter = {
             selector_name = "inserter_selector",
             label = {"gui.inserter_label"},
             generic_sprite = "gp:generic-inserter-sprite",
-            selected_item = gp_selected_inserter
+            selected_item = gp_state.selected_inserter
         }
     }
 
@@ -118,15 +124,15 @@ local function setup_tiers()
     if game.active_mods["IndustrialRevolution3"] then
         game.print("IR3 installed!")
 
-        gp_inserter_list    = {"burner-inserter","steam-inserter", "inserter", "fast-inserter", "stack-inserter"}
-        gp_belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+        gp_data.inserter_list    = {"burner-inserter","steam-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_data.belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
 
     elseif game.active_mods["SpaceExploration"] then
         game.print("SE installed!")
 
     else
-        gp_inserter_list    = {"burner-inserter", "inserter", "fast-inserter", "stack-inserter"}
-        gp_belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
+        gp_data.inserter_list    = {"burner-inserter", "inserter", "fast-inserter", "stack-inserter"}
+        gp_data.belt_list        = {"transport-belt", "fast-transport-belt", "express-transport-belt"}
     end
 end
 
@@ -184,7 +190,7 @@ script.on_event(defines.events.on_gui_click, function(event)
             popup_frame.destroy()
         end
 
-        popup_frame = build_popup(player, gp_belt_list, "belt", {200, 350})
+        popup_frame = build_popup(player, gp_data.belt_list, "belt", {200, 350})
         is_popup_visible = true 
     end
 
@@ -192,19 +198,19 @@ script.on_event(defines.events.on_gui_click, function(event)
         if(popup_frame) then
             popup_frame.destroy()
         end
-        popup_frame = build_popup(player, gp_inserter_list, "inserter", {200, 350})
+        popup_frame = build_popup(player, gp_data.inserter_list, "inserter", {200, 350})
         is_popup_visible = true
     end
 
     if event.element.tags.class == "gp_tier_selector" then
         if event.element.tags.category == "belt" then
-            gp_selected_belt = event.element.tags.item
+            gp_state.selected_belt = event.element.tags.item
 
             toggle_interface(player)
             toggle_interface(player)
 
         elseif event.element.tags.category == "inserter" then
-            gp_selected_inserter = event.element.tags.item
+            gp_state.selected_inserter = event.element.tags.item
 
             toggle_interface(player)
             toggle_interface(player)
@@ -231,7 +237,9 @@ script.on_event(defines.events.on_player_pipette, function(event)
         if(inventory ~= nil) then
             game.print(event.item.subgroup.name)
             if(event.item.subgroup.name == "belt") then
-                player.cursor_stack.set_stack((inventory.find_item_stack(gp_selected_belt or "")))
+                player.cursor_stack.clear()
+                player.cursor_ghost = "express-transport-belt"
+                -- player.cursor_stack.set_stack((inventory.find_item_stack(gp_selected_belt or "")))
             end
         end
     end
