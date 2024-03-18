@@ -109,6 +109,12 @@ end)
 
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.get_player(event.player_index)
+
+    if player == nil then
+        game.print("ERROR! NO PLAYER")
+        do return end
+    end
+
     initialize_global(player)
 
     local button_flow = mod_gui.get_button_flow(player)
